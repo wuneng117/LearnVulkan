@@ -41,7 +41,7 @@ vkCreateInstance(&instanceInfo, NULL, &instance);
 ```
 
 ## 3)创建设备
-枚举当前系统中所有的物理设备或者GPU的数量，并且调用vkEnumeratePhysicalDevicesa()API函数。
+枚举当前系统中所有的物理设备或者GPU的数量，并且调用vkEnumeratePhysicalDevices()API函数。
 
 ```
 /*** 3.  枚举物理设备 ***/
@@ -55,6 +55,53 @@ vkEnumeratePhysicalDevices(instance, &gpuCount, NULL);
 // 获取gpu的信息
 vkEnumeratePhysicalDevices(instance, &gpuCount, gpuList);
 ```
+
+注：上下文之间少了枚举设备层扩展和启动设备层扩展
+
+```
+/*** 4. 创建设备 ***/
+// 这里省略掉了queueCount, queueProperties, memoryPropperties, gpuProps, device的声明
+
+// 获取队列和队列类型
+vkGetPhysicalDeviceQueueFamilyProperties(gpu, &ququeCount, queueProperties);
+
+// 获取物理设备或者Gpu中的内存属性
+vkGetPhysicalDeviceMemoryProperties(gpu, &memoryProperties);
+
+// 获取物理设备或者gpu的属性
+vkGetPhysicalDeviceProperties(gpu, &gpuProps);
+
+// 从物理设备创建逻辑设备对象
+vkDeviceCreateInfo deviceInfo = {};
+vkCreateDevice(gpuList[0], &deviceInfo, NULL, &device);
+
+```
+
+# 2.2.2 交换链初始化————查询WSI扩展
+
+```
+/*** 5. 展示层的初始化 ***/
+
+// 创建空窗口
+CreateWindowEx(...);     // windows
+xcb_create_window(...);  // linux
+
+// 查询SWI扩展函数并保存为函数指针的形式
+// 例如: vcCreateSwapchainKHR, vkCreateSwapchainKHR......
+// 创建一个抽象表面对象
+vkWin32SurfaceCreateInfoKHR createInfo = {};
+vkCreateWin32SurfaceKHR(instance, &createInfo, NULL, &surface); // TODO：surface哪里来的？
+
+// 从所有的队列中，选择一个支持当前展示层的队列
+foreach Queue in All Queues {
+    vkGetPhysicalDeviceSurfaceSupportKHR(gpu, queueIndex, surface, &isPresentationSupported);   // TODO queueIndex哪里来的
+    if (isPresentationSupported) {
+        graphicsQueueFamilyIndex = Queue.index;
+        break;
+    }
+}
+```
+
 
 
 
