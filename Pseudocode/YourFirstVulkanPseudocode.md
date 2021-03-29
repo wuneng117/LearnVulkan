@@ -90,16 +90,27 @@ xcb_create_window(...);  // linux
 // 例如: vcCreateSwapchainKHR, vkCreateSwapchainKHR......
 // 创建一个抽象表面对象
 vkWin32SurfaceCreateInfoKHR createInfo = {};
-vkCreateWin32SurfaceKHR(instance, &createInfo, NULL, &surface); // TODO：surface哪里来的？
+vkCreateWin32SurfaceKHR(instance, &createInfo, NULL, &surface); // ZT_TAG：surface哪里来的？
 
 // 从所有的队列中，选择一个支持当前展示层的队列
 foreach Queue in All Queues {
-    vkGetPhysicalDeviceSurfaceSupportKHR(gpu, queueIndex, surface, &isPresentationSupported);   // TODO queueIndex哪里来的
+    vkGetPhysicalDeviceSurfaceSupportKHR(gpu, queueIndex, surface, &isPresentationSupported);   // ZT_TAG queueIndex哪里来的
     if (isPresentationSupported) {
         graphicsQueueFamilyIndex = Queue.index;
         break;
     }
 }
+
+// 获取兼容层的队列，它同时也是一个图形队列
+vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &queue);  // ZT_TAG queue哪里来的
+
+// 分配内存空间来记录绘制表面的格式的总数
+uint32_t formatCount;
+vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, NULL);
+vkSurfaceFormatKHR *surfaceFormats = allocate memroy(formatCount * VKSurfaceFormatKHR); // ZT_TAG 申请堆内存
+
+// 将表面格式保存到VKSurfaceFormatKHR对象中
+vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, surfaceFormats);
 ```
 
 
