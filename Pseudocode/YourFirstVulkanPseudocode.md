@@ -113,8 +113,86 @@ vkSurfaceFormatKHR *surfaceFormats = allocate memroy(formatCount * VKSurfaceForm
 vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, surfaceFormats);
 ```
 
+```
+/*** 6. 创建交换链 ***/
 
+// 开始将指令记录到指令缓存当中
+vkBeginCommandBuffer(cmd, &cmdBufInfo); //ZT_TAG 这2个哪里来的，怎么越写越懒啊
 
+// 获取表面的性能参数
+vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surfCapabilities);
+
+// 获取表面的展示模式
+vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, NULL);
+VkPresentModeKHR presentModes[presentModeCount];
+vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, presentModes);
+
+// 创建交换链
+VkSwapchainCreateInfoKHR swapChainInfo = {};
+fpCreateSwapchainKHR(device, &swapChainInfo, NULL, &swapChain);
+// 创建所需交换链图像对应的图像视图
+vkGetSwapChainImagesKHR(device, swapChain, &swapchainImageCount, NULL);
+VkImage swapchainImages[swapchainImageCount];
+vkGetSwapChainImagesKHR(device, swapChain, &swapchainImageCount, swapchainImages);
+
+// 获取交换链中的图像
+foreach swapchainImages {
+    // 设置布局方式，与具体驱动的实现兼容
+    SetImageLayout(...)
+
+    // 插入流水线屏障
+    VkImageMemoryBarrier imagerMemoryBarrier = {...};
+    vkCmdPipelineBarrier(cmd, srtStages, destStages, 0, 0, NULL, 0, NULL, 1, &imageMemoryBarrier);
+    
+    // 创建图像视图
+    vkCreateImageView(device, &colorImageView, NULL, &scBuffer.view);
+
+    // 保存图像视图， 为应用程序所用
+    buffers.push_back(scBuffer);
+}
+```
+
+```
+/*** 7. 创建深度图像 ***/
+// 查询当前物理设备所支持的格式
+vkGetPhysicalDeviceFormatsProperties(gpus, depthFormat, &properties);
+
+// 创建一个图像对象
+vkCreateImage(device, &imageInfo, NULL, &imageObject);
+
+// 获取图像资源所需的内存空间
+vkGetImageMemoryRequirements(device, image, &memoryRequirements);
+
+// 分配内存
+vkAllocateMemory(device, &memAlloc, NULL, &memorys);
+
+// 绑定内存
+vkBindImageMemory(device, imageObject, mem, 0);
+// 设置图像布局，可用于当前设备
+SetImageLayout(...)
+
+//插入新的流水线屏障，确保刚才设置的图像布局在图像被真正使用之前就已经创建了
+vkCmdPipelineBarrier(cmd, srtStages, destStages, 0, 0, NULL, 0, NULL, 1, &imagePipelineBarrier);
+
+// 创建图像视图
+vkCreateImageView(device, &imgViewInfo, NULL, &view);
+```
+
+# 2.2.3 着色器的支持
+
+```
+/*** 8. 构建着色器模块 ***/
+VkPipelineShaderStageCreateInfo vtxShdrStage = {...};
+VkShaderModuleCreateInfo moduleCreateInfo = {...};
+
+// spvVertexShaderData中保存了二进制格式的顶点着色器代码
+moduleCreateInfo.pCode = spvVertexShaderData;
+
+// 在设备端创建着色器模块
+vkCreateShaderModule(device, &moduleCreateInfo, NULL, &vtxShdrStage.module);
+```
+
+# 2.2.4 构建布局————描述符与流水线布局
 
 
 
