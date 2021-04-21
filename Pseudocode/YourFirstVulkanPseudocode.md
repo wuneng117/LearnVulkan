@@ -193,7 +193,131 @@ vkCreateShaderModule(device, &moduleCreateInfo, NULL, &vtxShdrStage.module);
 ```
 
 # 2.2.4 构建布局————描述符与流水线布局
+描述符负责将资源与着色器通过布局绑定的方式关联起来。我们通用用它来绑定一致和采样器变量到着色器中。
+```
+/*** 9. 创建描述符以及流水线布局 ***/
 
+// 描述符的定义类型与着色器中是对应的
+VkDescriptorSetLayoutBinding layoutBind[2];
 
+layoutBind[0].descriptorType    = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+layoutBind[0].binding           = 0;
+layoutBind[0].stageFlags        = VK_SHADER_STAGE_VERTEX_BIT;
+
+layoutBind[1].descriptorType    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SIMPLER;
+layoutBind[1].binding           = 0;
+layoutBind[1].stageFlags        = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+// 设置布局绑定，创建描述符集
+VKDescriptorSetLayoutCreateInfo descriptorLayout = {};
+descriptorLayout.pBindings = layoutBind;
+
+VkDescriptorSetLayout descLayout[2];
+vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, descLayout.data());
+
+// 现在我们可以使用描述符来创建一个流水线布局了
+VkPipelineLayoutCreateInfo pipelineLayoutCI = {...};
+pipelineLayoutCI.pSetLayouts = descLayout.data();
+vkCreatePipelineLayout(device, &pipelineLayoutCI, NULL, &pipelineLayout);
+```
+
+# 2.2.5 创建渲染通道————定义通道属性
+
+```
+/*** 10. 渲染通道 ***/
+
+// 定义两个附件， 分别对应了颜色和深度缓存
+VkAttachmentDescription attachments[2];
+attachments[0].format = colorImageformat;
+attachments[0].loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+attachments[1].format = depthImageformat;
+attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+VkAttachmentReference colorReference, depthReference = {...};
+
+// 使用颜色图像和深度图像来构建子通道
+VKSubpassDescription subpass = {};
+subpass.pcolorAttachments = &colorReference;
+subpass.pdepthAttachments = &depthReference;
+
+// 定义渲染通道控制的结构体
+VkRednerPassCreateInfo rpInfo = { &attachments, &subpass ...};
+vkCreateRenderPass(device, &rpInfo, NULL, &renderPass);
+
+```
+
+# 2.2.6 帧缓存————将绘制推向关联到渲染通道
+
+```
+/*** 11. 创建帧缓存 ***/
+
+VKImageView attachments[2]; // 0表示颜色， 1表示深度
+attachments[1] = Depth.view;
+
+VkFramebufferCreateInfo fbInfo = {};
+fbInfo.renderPass = renderPass;     // 渲染缓存对象
+fbInfo.pAttachments = attachments;  // 图像视图附件
+fbInfo.width = width;   // 帧缓存宽度
+fbInfo.height = height; // 帧缓存高度
+
+// 为交换链中的每幅图像的帧缓存对象分配内存，每幅图像只有一个帧缓存
+VkFramebuffer framebuffers[交换链中的绘制图像数量];
+
+foreach (drawing buffer in swapchain) {
+    attachments[0] = currentSwapChainDrawImage.view;
+    vkCreateFramebuffer(device, &fbInfo, NULL, &framebuffers[i]);
+}
+```
+
+# 2.2.7 产生几何体————在GPU内存中保存一个顶点
+
+```
+/*** 12. 产生几何体， 在GPU内存中保存顶点 ***/
+
+static const VertexWithColor triangleData[] = {
+/*  {  x,      y,    z,    w,    r,    g,    b,    a  },*/
+    { 0.0f,   1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0 },
+    { -1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0 },
+    { 1.0f,  -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0 },
+};
+
+VkBuffer buffer;
+VkMemoryRequirements mem_requirement;
+VkDeviceMemory deviceMemory;
+
+// 创建缓存对象，查询所需的内存空间，分配内存
+VkBufferCreateInfo buffer_info = {...};
+vkCreateBuffer(device, &buffer_info, NULL, &buffer);
+
+vkGetbufferMemoryRequirements(device, buffer, &mem_requirement);
+
+VkMemoryAllocateInfo alloc_info = {...};
+vkAllocateMemory(device, &alloc_info, NULL, &(deviceMemory));
+
+// 通过映射的方式，将三角形几何数据复制到GPU端
+uint8_t *pData;
+vkMapMemory(device, deviceMemory, 0, mem_requirement.size, 0, pData);
+memcpy(pData, triangleData, dataSize); // 复制数据
+vkUnmapMemory(device, deviceMemory);
+
+// 绑定分配后的内存
+vkBindBufferMemory(device, buffer, deviceMemory, 0);
+
+/*** 13. 顶点绑定 ***/
+VkVertexInputBindingDescription viBinding;
+viBinding.binding = 0;
+viBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+viBinding.stride = sizeof(triangleData);    // 数据间隔
+
+VkVertexInputAttributeDescription viAttribs[2];
+viAttribs[0].binding = 0;
+viAttribs[0].location = 0;
+viAttribs[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+viAttribs[0].offset = 0;
+viAttribs[1].binding = 0;
+viAttribs[1].location = 1;
+viAttribs[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+viAttribs[1].offset = 16;
+```
 
 
